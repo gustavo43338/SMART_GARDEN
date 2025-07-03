@@ -10,7 +10,13 @@ import {
   View,
 } from 'react-native';
 
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from './App'; // Asegúrate que esta ruta sea correcta
+
 export default function Monitor() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   const [datos, setDatos] = useState({
     temperatura: '--',
     humedad: '--',
@@ -20,6 +26,7 @@ export default function Monitor() {
   });
 
   const [loading, setLoading] = useState(false);
+
   const datosSimulados = () => ({
     temperatura: (20 + Math.random() * 10).toFixed(1),
     humedad: (40 + Math.random() * 20).toFixed(0),
@@ -31,7 +38,6 @@ export default function Monitor() {
   const obtenerDatos = async () => {
     setLoading(true);
     try {
-
       setDatos(datosSimulados());
     } catch (err) {
       Alert.alert('Error', 'No se pudieron obtener los datos');
@@ -74,6 +80,13 @@ export default function Monitor() {
       <TouchableOpacity style={styles.button} onPress={activarBomba}>
         <Text style={styles.buttonText}>💧 Activar Bomba de Agua</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.navigateButton}
+        onPress={() => navigation.navigate('EstadoPlantas')}
+      >
+        <Text style={styles.navigateButtonText}>🌿 Ver Estado de Plantas</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -104,6 +117,19 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  navigateButton: {
+    backgroundColor: '#4caf50',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+    elevation: 3,
+  },
+  navigateButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
