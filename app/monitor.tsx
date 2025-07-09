@@ -9,10 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from './App'; // Asegúrate que esta ruta sea correcta
+import { RootStackParamList } from './App'; // Ajusta si es necesario
 
 export default function Monitor() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -23,25 +22,31 @@ export default function Monitor() {
     aire: '--',
     agua: '--',
     tierra: '--',
+    luminocidad: '--',
   });
 
   const [loading, setLoading] = useState(false);
 
-  const datosSimulados = () => ({
-    temperatura: (20 + Math.random() * 10).toFixed(1),
-    humedad: (40 + Math.random() * 20).toFixed(0),
-    aire: ['Bueno', 'Regular', 'Malo'][Math.floor(Math.random() * 3)],
-    agua: ['Alto', 'Medio', 'Bajo'][Math.floor(Math.random() * 3)],
-    tierra: (30 + Math.random() * 40).toFixed(0),
-  });
-
   const obtenerDatos = async () => {
     setLoading(true);
     try {
-      setDatos(datosSimulados());
+      const response = await fetch('http://192.168.1.203:3000/sensores/ultimo');
+      const json = await response.json();
+      if (json) {
+        setDatos({
+          temperatura: json.temperatura || '--',
+          humedad: json.humedad || '--',
+          aire: json.aire || '--',
+          agua: json.agua || '--',
+          tierra: json.tierra || '--',
+          luminocidad: json.luminocidad || '--',
+        });
+      } else {
+        Alert.alert('Error', 'No se encontraron datos del sensor');
+      }
     } catch (err) {
-      Alert.alert('Error', 'No se pudieron obtener los datos');
-      console.log(err);
+      Alert.alert('Error', 'No se pudieron obtener los datos del servidor');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -49,9 +54,27 @@ export default function Monitor() {
 
   const activarBomba = async () => {
     try {
-      Alert.alert('Éxito', '¡Bomba activada!');
+      const response = await fetch('http://192.168.1.203:3000/bomba/encender', {
+        method: 'POST',
+      });
+      const json = await response.json();
+      Alert.alert('Bomba', json.message || 'Bomba activada');
     } catch (err) {
       Alert.alert('Error', 'Error al activar bomba');
+      console.error(err);
+    }
+  };
+
+  const apagarBomba = async () => {
+    try {
+      const response = await fetch('http://192.168.1.203:3000/bomba/apagar', {
+        method: 'POST',
+      });
+      const json = await response.json();
+      Alert.alert('Bomba', json.message || 'Bomba apagada');
+    } catch (err) {
+      Alert.alert('Error', 'Error al apagar bomba');
+      console.error(err);
     }
   };
 
@@ -75,10 +98,15 @@ export default function Monitor() {
         <SensorCard titulo="Calidad del Aire" valor={datos.aire} />
         <SensorCard titulo="Nivel de Agua" valor={datos.agua} />
         <SensorCard titulo="Humedad del Suelo" valor={`${datos.tierra} %`} />
+        <SensorCard titulo="Luminocidad" valor={`${datos.luminocidad} lx`} />
       </View>
 
       <TouchableOpacity style={styles.button} onPress={activarBomba}>
         <Text style={styles.buttonText}>💧 Activar Bomba de Agua</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.offButton} onPress={apagarBomba}>
+        <Text style={styles.buttonText}>🛑 Apagar Bomba</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -114,6 +142,14 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    elevation: 3,
+  },
+  offButton: {
+    backgroundColor: '#d32f2f',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
     elevation: 3,
   },
   buttonText: {

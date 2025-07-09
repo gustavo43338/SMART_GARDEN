@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
@@ -12,8 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 
-export default function RegisterScreen() {
+export default function Register() {
   const router = useRouter();
 
   const [nombre, setNombre] = useState('');
@@ -21,8 +21,9 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [password2, setPassword2] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const onRegister = () => {
+  const onRegister = async () => {
     if (!nombre || !telefono || !email || !password || !password2) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
@@ -31,8 +32,36 @@ export default function RegisterScreen() {
       Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
-    Alert.alert('Éxito', 'Registro completado');
-    router.push('/'); // O a donde quieras
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://192.168.1.203:3000/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre,
+          correo: email,
+          contraseña: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Error', data.error || 'Error en el registro');
+        setLoading(false);
+        return;
+      }
+
+      Alert.alert('Éxito', data.message || 'Registro completado');
+      setLoading(false);
+      router.push('/'); // Navegar tras registro exitoso
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo conectar al servidor');
+      console.error(error);
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,12 +69,14 @@ export default function RegisterScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={{ paddingVertical: 40, width: '100%', alignItems: 'center' }}>
+      <ScrollView
+        contentContainerStyle={{ paddingVertical: 40, width: '100%', alignItems: 'center' }}
+      >
         <Image
-  source={require('../assets/images/jardin-header.jpg')} 
-  style={styles.logo}
-  resizeMode="contain"
-/>
+          source={require('../assets/images/jardin-header.jpg')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={styles.title}>📝 Crear cuenta</Text>
 
         <View style={styles.inputContainer}>
@@ -55,6 +86,7 @@ export default function RegisterScreen() {
             value={nombre}
             onChangeText={setNombre}
             style={styles.input}
+            editable={!loading}
           />
           <TextInput
             placeholder="Número de teléfono"
@@ -63,6 +95,7 @@ export default function RegisterScreen() {
             onChangeText={setTelefono}
             keyboardType="phone-pad"
             style={styles.input}
+            editable={!loading}
           />
           <TextInput
             placeholder="Correo electrónico"
@@ -71,6 +104,8 @@ export default function RegisterScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             style={styles.input}
+            editable={!loading}
+            autoCapitalize="none"
           />
           <TextInput
             placeholder="Contraseña"
@@ -79,6 +114,7 @@ export default function RegisterScreen() {
             value={password}
             onChangeText={setPassword}
             style={styles.input}
+            editable={!loading}
           />
           <TextInput
             placeholder="Verificar contraseña"
@@ -87,11 +123,16 @@ export default function RegisterScreen() {
             value={password2}
             onChangeText={setPassword2}
             style={styles.input}
+            editable={!loading}
           />
         </View>
 
-        <TouchableOpacity style={styles.registerButton} onPress={onRegister}>
-          <Text style={styles.registerButtonText}>Registrarse</Text>
+        <TouchableOpacity
+          style={[styles.registerButton, loading && { backgroundColor: '#a5d6a7' }]}
+          onPress={onRegister}
+          disabled={loading}
+        >
+          <Text style={styles.registerButtonText}>{loading ? 'Registrando...' : 'Registrarse'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/')}>
@@ -109,10 +150,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: '100%',  
-    height: 180,   
+    width: '100%',
+    height: 180,
     marginBottom: 20,
-    
   },
   title: {
     fontSize: 22,

@@ -1,55 +1,109 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import SensorCard from '@/components/SensorCard'; // Ajusta la ruta si es necesario
 
-const historialSimulado = [
-  {
-    fecha: '2025-07-02 10:00',
-    planta: 'Menta',
-    sensores: {
-      temperatura: 24.1,
-      humedad: 65,
-      tierra: 45,
-      aire: 'Bueno',
-      agua: 'Medio',
-    },
+// Definición de tipos
+interface SensorData {
+  temperatura: number;
+  humedad: number;
+  tierra: number;
+  aire: string;
+  agua: string;
+  luminocidad: number;
+}
+
+interface RegistroHistorial {
+  fecha: string;
+  planta: string;
+  sensores: SensorData;
+}
+
+const generarRegistroSimulado = (planta: string): RegistroHistorial => ({
+  fecha: new Date().toISOString(),
+  planta,
+  sensores: {
+    temperatura: parseFloat((18 + Math.random() * 15).toFixed(1)),
+    humedad: parseFloat((20 + Math.random() * 80).toFixed(0)),
+    tierra: parseFloat((20 + Math.random() * 60).toFixed(0)),
+    aire: ['Bueno', 'Regular', 'Malo'][Math.floor(Math.random() * 3)],
+    agua: ['Alto', 'Medio', 'Bajo'][Math.floor(Math.random() * 3)],
+    luminocidad: parseFloat((100 + Math.random() * 900).toFixed(0)),
   },
-  {
-    fecha: '2025-07-02 10:00',
-    planta: 'Lavanda',
-    sensores: {
-      temperatura: 22.7,
-      humedad: 60,
-      tierra: 55,
-      aire: 'Regular',
-      agua: 'Alto',
-    },
-  },
-  {
-    fecha: '2025-07-02 10:00',
-    planta: 'Albahaca',
-    sensores: {
-      temperatura: 25.3,
-      humedad: 68,
-      tierra: 40,
-      aire: 'Malo',
-      agua: 'Bajo',
-    },
-  },
-];
+});
+
+const evaluar = (tipo: string, valor: number | string): string => {
+  if (typeof valor === 'string') return valor;
+  switch (tipo) {
+    case 'temperatura':
+      return valor < 18 ? 'Baja' : valor > 30 ? 'Alta' : 'Óptima';
+    case 'humedad':
+      return valor < 40 ? 'Baja' : valor > 70 ? 'Alta' : 'Óptima';
+    case 'tierra':
+      return valor < 30 ? 'Seca' : valor > 70 ? 'Muy Húmeda' : 'Óptima';
+    case 'luminocidad':
+      if (valor < 200) return 'Muy Baja';
+      if (valor < 500) return 'Baja';
+      if (valor < 800) return 'Óptima';
+      return 'Alta';
+    default:
+      return '--';
+  }
+};
+
+// Función para formatear la fecha
+const formatearFecha = (fecha: string) => {
+  const options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  };
+  const date = new Date(fecha);
+  return date.toLocaleString('es-MX', options).replace(',', ''); // Formato en español
+};
 
 export default function HistorialPlantas() {
+  const [historial, setHistorial] = useState<RegistroHistorial[]>([]); // Especificamos el tipo aquí
+
+  useEffect(() => {
+    const plantas = ['Menta', 'Lavanda', 'Albahaca'];
+    const interval = setInterval(() => {
+      const nuevosRegistros = plantas.map(generarRegistroSimulado);
+      setHistorial(prevHistorial => [...prevHistorial, ...nuevosRegistros]);
+    }, 5000); // Actualiza cada 5 segundos
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>📜 Historial de Estado de Plantas</Text>
-      {historialSimulado.map((registro, index) => (
-        <View key={index} style={styles.card}>
-          <Text style={styles.fecha}>🕒 {registro.fecha}</Text>
+      {historial.map((registro, index) => (
+        <View key={index} style={styles.plantaCard}>
+          <Text style={styles.fecha}>🕒 {formatearFecha(registro.fecha)}</Text>
           <Text style={styles.nombre}>{registro.planta}</Text>
-          <Text>🌡️ Temperatura: {registro.sensores.temperatura} °C</Text>
-          <Text>💧 Humedad: {registro.sensores.humedad} %</Text>
-          <Text>🌍 Suelo: {registro.sensores.tierra} %</Text>
-          <Text>🌬️ Aire: {registro.sensores.aire}</Text>
-          <Text>🚰 Agua: {registro.sensores.agua}</Text>
+          <View style={styles.sensoresContainer}>
+            <SensorCard
+              titulo="Temperatura"
+              valor={evaluar('temperatura', registro.sensores.temperatura)}
+            />
+            <SensorCard
+              titulo="Humedad Ambiental"
+              valor={evaluar('humedad', registro.sensores.humedad)}
+            />
+            <SensorCard
+              titulo="Humedad del Suelo"
+              valor={evaluar('tierra', registro.sensores.tierra)}
+            />
+            <SensorCard titulo="Calidad del Aire" valor={registro.sensores.aire} />
+            <SensorCard titulo="Nivel de Agua" valor={registro.sensores.agua} />
+            <SensorCard
+              titulo="Luminocidad"
+              valor={evaluar('luminocidad', registro.sensores.luminocidad)}
+            />
+          </View>
         </View>
       ))}
     </ScrollView>
@@ -70,22 +124,26 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textAlign: 'center',
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+  plantaCard: {
+    marginBottom: 24,
+    backgroundColor: '#f5fff7',
+    borderRadius: 14,
     padding: 16,
-    marginBottom: 20,
     elevation: 3,
   },
   fecha: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   nombre: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 12,
     color: '#1b5e20',
+    textAlign: 'center',
+  },
+  sensoresContainer: {
+    gap: 12,
   },
 });
