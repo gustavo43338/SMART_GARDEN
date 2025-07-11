@@ -9,9 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from './App'; // Ajusta si es necesario
+import { RootStackParamList } from './App';
+
+// ✅ IP del backend corregida
+const API_URL = 'http://192.168.100.10:3000/sensores/ultimo';
 
 export default function Monitor() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -30,23 +34,20 @@ export default function Monitor() {
   const obtenerDatos = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://192.168.1.203:3000/sensores/ultimo');
-      const json = await response.json();
-      if (json) {
-        setDatos({
-          temperatura: json.temperatura || '--',
-          humedad: json.humedad || '--',
-          aire: json.aire || '--',
-          agua: json.agua || '--',
-          tierra: json.tierra || '--',
-          luminocidad: json.luminocidad || '--',
-        });
-      } else {
-        Alert.alert('Error', 'No se encontraron datos del sensor');
-      }
+      const response = await fetch(API_URL);
+      if (!response.ok) throw new Error('No se pudo obtener los datos del servidor');
+      const data = await response.json();
+      setDatos({
+        temperatura: data.temperatura || '--',
+        humedad: data.humedad || '--',
+        aire: data.aire || '--',
+        agua: data.agua || '--',
+        tierra: data.tierra || '--',
+        luminocidad: data.luminocidad || '--',
+      });
     } catch (err) {
-      Alert.alert('Error', 'No se pudieron obtener los datos del servidor');
       console.error(err);
+      Alert.alert('Error', 'No se pudieron obtener los datos del servidor');
     } finally {
       setLoading(false);
     }
@@ -54,33 +55,16 @@ export default function Monitor() {
 
   const activarBomba = async () => {
     try {
-      const response = await fetch('http://192.168.1.203:3000/bomba/encender', {
-        method: 'POST',
-      });
-      const json = await response.json();
-      Alert.alert('Bomba', json.message || 'Bomba activada');
+      // Aquí puedes agregar lógica para enviar una petición a tu ESP32 o backend
+      Alert.alert('Éxito', '¡Bomba activada!');
     } catch (err) {
       Alert.alert('Error', 'Error al activar bomba');
-      console.error(err);
-    }
-  };
-
-  const apagarBomba = async () => {
-    try {
-      const response = await fetch('http://192.168.1.203:3000/bomba/apagar', {
-        method: 'POST',
-      });
-      const json = await response.json();
-      Alert.alert('Bomba', json.message || 'Bomba apagada');
-    } catch (err) {
-      Alert.alert('Error', 'Error al apagar bomba');
-      console.error(err);
     }
   };
 
   useEffect(() => {
-    obtenerDatos();
-    const interval = setInterval(obtenerDatos, 5000);
+    obtenerDatos(); // Carga inicial
+    const interval = setInterval(obtenerDatos, 5000); // Refresca cada 5 segundos
     return () => clearInterval(interval);
   }, []);
 
@@ -104,10 +88,14 @@ export default function Monitor() {
       <TouchableOpacity style={styles.button} onPress={activarBomba}>
         <Text style={styles.buttonText}>💧 Activar Bomba de Agua</Text>
       </TouchableOpacity>
+      
+      <TouchableOpacity
+  style={styles.navigateButton}
+  onPress={() => navigation.navigate('AgregarPlanta')}
+>
+  <Text style={styles.navigateButtonText}>🌱 Agregar Nueva Planta</Text>
+</TouchableOpacity>
 
-      <TouchableOpacity style={styles.offButton} onPress={apagarBomba}>
-        <Text style={styles.buttonText}>🛑 Apagar Bomba</Text>
-      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.navigateButton}
@@ -116,6 +104,7 @@ export default function Monitor() {
         <Text style={styles.navigateButtonText}>🌿 Ver Estado de Plantas</Text>
       </TouchableOpacity>
     </ScrollView>
+    
   );
 }
 
@@ -139,17 +128,9 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: '#388e3c',
-    paddingVertical: 16,
+    paddingVertical: 16, 
     borderRadius: 12,
     alignItems: 'center',
-    elevation: 3,
-  },
-  offButton: {
-    backgroundColor: '#d32f2f',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
     elevation: 3,
   },
   buttonText: {

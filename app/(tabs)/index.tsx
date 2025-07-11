@@ -9,12 +9,63 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function LoginScreen() {
+export default function Login() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [correo, setCorreo] = useState('');
+  const [contraseña, setContraseña] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const validarCampos = () => {
+    if (!correo || !contraseña) {
+      setError('Todos los campos son obligatorios.');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(correo)) {
+      setError('El correo no es válido.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleLogin = async () => {
+    setError('');
+
+    if (!validarCampos()) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://192.168.100.10:3000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo, contraseña }),
+      });
+
+      const data = await response.json();
+
+      console.log(data)
+
+      if (response.ok) {
+        await AsyncStorage.setItem('token', data.token);
+        router.replace('/home');
+      } else {
+        setError(data.error || 'Credenciales incorrectas.');
+      }
+    } catch (err) {
+      console.log(err)
+      setError('Error de conexión. Intenta más tarde.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -22,41 +73,45 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Image
-        source={require('../../assets/images/jardin-header.jpg')} 
+        source={require('C:/Users/gusta/smart-garden/smart-garden/assets/images/jardin-header.jpg')}
         style={styles.logo}
-        resizeMode="contain" 
+        resizeMode="contain"
       />
 
-      <Text style={styles.title}>🌿 Iniciar sesión</Text>
+      <Text style={styles.title}>🌱 Bienvenido de nuevo</Text>
 
-      <View style={styles.inputContainer}>
+      {error !== '' && <Text style={styles.errorText}>{error}</Text>}
+
+      <View style={styles.form}>
         <TextInput
           placeholder="Correo electrónico"
-          placeholderTextColor="#999"
-          value={email}
-          onChangeText={setEmail}
+          placeholderTextColor="#777"
           style={styles.input}
           keyboardType="email-address"
+          autoCapitalize="none"
+          value={correo}
+          onChangeText={setCorreo}
         />
         <TextInput
           placeholder="Contraseña"
-          placeholderTextColor="#999"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
+          placeholderTextColor="#777"
           style={styles.input}
+          secureTextEntry
+          value={contraseña}
+          onChangeText={setContraseña}
         />
       </View>
 
-      <TouchableOpacity
-        style={styles.loginButton}
-        onPress={() => router.push('/home')}
-      >
-        <Text style={styles.loginButtonText}>Entrar</Text>
+      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Iniciar sesión</Text>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => router.push('/register')}>
-        <Text style={styles.registerText}>¿No tienes cuenta? Regístrate</Text>
+        <Text style={styles.registerLink}>¿No tienes cuenta? Regístrate</Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
@@ -65,48 +120,56 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e0f2f1',
+    backgroundColor: '#e8f5e9',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
   },
   logo: {
-    width: '100%',  
-    height: 180,   
+    width: '100%',
+    height: 160,
     marginBottom: 20,
-  
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#2e7d32',
-    marginBottom: 24,
-  },
-  inputContainer: {
-    width: '100%',
     marginBottom: 20,
+  },
+  errorText: {
+    color: '#c62828',
+    marginBottom: 15,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  form: {
+    width: '100%',
   },
   input: {
     backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#a5d6a7',
-  },
-  loginButton: {
-    backgroundColor: '#388e3c',
     paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#c8e6c9',
+    fontSize: 16,
   },
-  loginButtonText: {
+  button: {
+    backgroundColor: '#388e3c',
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  registerText: {
+  registerLink: {
     color: '#1b5e20',
     fontSize: 14,
     textDecorationLine: 'underline',

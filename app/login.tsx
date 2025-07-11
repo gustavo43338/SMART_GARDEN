@@ -51,6 +51,8 @@ export default function Login() {
 
       const data = await response.json();
 
+      console.log(data)
+
       if (response.ok) {
         await AsyncStorage.setItem('token', data.token);
         router.replace('/home');
