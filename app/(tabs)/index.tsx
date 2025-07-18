@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -10,8 +9,21 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Animated,
+  Easing,
+  Dimensions,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { width, height } = Dimensions.get('window');
+
+interface BubbleProps {
+  id: number;
+  size: number;
+  left: number;
+  duration: number;
+}
 
 export default function Login() {
   const router = useRouter();
@@ -19,6 +31,9 @@ export default function Login() {
   const [contraseña, setContraseña] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [bubbles, setBubbles] = useState<BubbleProps[]>([]);
+  const animations = useRef<Animated.Value[]>([]).current;
 
   const validarCampos = () => {
     if (!correo || !contraseña) {
@@ -37,11 +52,9 @@ export default function Login() {
 
   const handleLogin = async () => {
     setError('');
-
     if (!validarCampos()) return;
 
     setLoading(true);
-
     try {
       const response = await fetch('http://192.168.100.10:3000/login', {
         method: 'POST',
@@ -50,69 +63,131 @@ export default function Login() {
       });
 
       const data = await response.json();
-
-      console.log(data)
-
       if (response.ok) {
         await AsyncStorage.setItem('token', data.token);
         router.replace('/home');
       } else {
         setError(data.error || 'Credenciales incorrectas.');
       }
-    } catch (err) {
-      console.log(err)
+    } catch {
       setError('Error de conexión. Intenta más tarde.');
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    const bubbleCount = 12;
+    const newBubbles: BubbleProps[] = [];
+    for (let i = 0; i < bubbleCount; i++) {
+      newBubbles.push({
+        id: i,
+        size: Math.random() * 40 + 15,
+        left: Math.random() * (width - 50),
+        duration: Math.random() * 6000 + 4000,
+      });
+    }
+    setBubbles(newBubbles);
+
+    animations.splice(0, animations.length);
+    newBubbles.forEach(() => {
+      animations.push(new Animated.Value(height + 100));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (bubbles.length === 0) return;
+
+    bubbles.forEach((bubble, index) => {
+      const animate = () => {
+        animations[index].setValue(height + bubble.size);
+        Animated.timing(animations[index], {
+          toValue: -bubble.size,
+          duration: bubble.duration,
+          useNativeDriver: true,
+          easing: Easing.linear,
+        }).start(() => animate());
+      };
+      animate();
+    });
+  }, [bubbles]);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Image
-        source={require('C:/Users/gusta/smart-garden/smart-garden/assets/images/jardin-header.jpg')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      <View style={styles.bubblesContainer}>
+        {bubbles.map((bubble, i) => (
+          <Animated.View
+            key={bubble.id}
+            style={[
+              styles.bubble,
+              {
+                width: bubble.size,
+                height: bubble.size,
+                left: bubble.left,
+                borderRadius: bubble.size / 2,
+                transform: [{ translateY: animations[i] || 0 }],
+                opacity: 0.3 + Math.random() * 0.4,
+              },
+            ]}
+          />
+        ))}
+      </View>
 
-      <Text style={styles.title}>🌱 Bienvenido de nuevo</Text>
+      <View style={styles.loginContainer}>
+        <Image
+          source={require('C:/Users/gusta/smart-garden/smart-garden/assets/images/jardin-header.jpg')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Iniciar Sesión</Text>
+        {error !== '' && <Text style={styles.errorText}>{error}</Text>}
 
-      {error !== '' && <Text style={styles.errorText}>{error}</Text>}
-
-      <View style={styles.form}>
         <TextInput
           placeholder="Correo electrónico"
-          placeholderTextColor="#777"
+          placeholderTextColor="#006241"
           style={styles.input}
           keyboardType="email-address"
           autoCapitalize="none"
           value={correo}
           onChangeText={setCorreo}
+          editable={!loading}
         />
         <TextInput
           placeholder="Contraseña"
-          placeholderTextColor="#777"
+          placeholderTextColor="#006241"
           style={styles.input}
           secureTextEntry
           value={contraseña}
           onChangeText={setContraseña}
+          editable={!loading}
         />
+
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Iniciar sesión</Text>
+          )}
+        </TouchableOpacity>
+
+       
+        <TouchableOpacity onPress={() => router.push('/Recuperar')}>
+  <Text style={styles.forgotLink}>¿Olvidaste tu contraseña?</Text>
+</TouchableOpacity>
+
+
+        <TouchableOpacity onPress={() => router.push('/register')}>
+          <Text style={styles.registerLink}>¿No tienes cuenta? Regístrate</Text>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Iniciar sesión</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => router.push('/register')}>
-        <Text style={styles.registerLink}>¿No tienes cuenta? Regístrate</Text>
-      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -120,58 +195,93 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e8f5e9',
+    backgroundColor: '#003300',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    padding: 20,
+    position: 'relative',
+  },
+  bubblesContainer: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    zIndex: 0,
+  },
+  bubble: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    bottom: 0,
+  },
+  loginContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 36,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.58,
+    shadowRadius: 16,
+    elevation: 24,
+    width: '90%',
+    maxWidth: 420,
+    alignItems: 'center',
+    zIndex: 1,
   },
   logo: {
-    width: '100%',
-    height: 160,
-    marginBottom: 20,
+    width: 130,
+    height: 130,
+    marginBottom: 28,
+    borderRadius: 65,
   },
   title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#2e7d32',
-    marginBottom: 20,
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#006241',
+    marginBottom: 32,
   },
   errorText: {
-    color: '#c62828',
+    color: '#cc0000',
     marginBottom: 15,
     fontSize: 14,
     textAlign: 'center',
   },
-  form: {
-    width: '100%',
-  },
   input: {
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#c8e6c9',
-    fontSize: 16,
+    width: '100%',
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 2,
+    borderColor: '#006241',
+    borderRadius: 16,
+    backgroundColor: '#e5f3eb',
+    fontSize: 17,
+    color: '#003300',
   },
   button: {
-    backgroundColor: '#388e3c',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 30,
     width: '100%',
+    padding: 18,
+    backgroundColor: '#006241',
+    borderRadius: 18,
     alignItems: 'center',
-    marginBottom: 16,
+    marginTop: 12,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#e5f3eb',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  forgotLink: {
+    marginTop: 12,
+    color: '#006241',
+    textDecorationLine: 'underline',
+    fontSize: 15,
   },
   registerLink: {
-    color: '#1b5e20',
-    fontSize: 14,
+    marginTop: 18,
+    color: '#006241',
     textDecorationLine: 'underline',
+    fontSize: 15,
   },
 });

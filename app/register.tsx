@@ -36,7 +36,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://192.168.100.10:3000/register', {
+      const response = await fetch('http://10.198.56.100:3000/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -70,7 +70,8 @@ export default function Register() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={{ paddingVertical: 40, width: '100%', alignItems: 'center' }}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
         <Image
           source={require('../assets/images/jardin-header.jpg')}
@@ -82,60 +83,69 @@ export default function Register() {
         <View style={styles.inputContainer}>
           <TextInput
             placeholder="Nombre completo"
-            placeholderTextColor="#999"
+            placeholderTextColor="#6c6d6caa"
             value={nombre}
             onChangeText={setNombre}
             style={styles.input}
             editable={!loading}
+            autoCapitalize="words"
+            autoComplete="name"
           />
           <TextInput
             placeholder="Número de teléfono"
-            placeholderTextColor="#999"
+            placeholderTextColor="#6c6d6caa"
             value={telefono}
             onChangeText={setTelefono}
             keyboardType="phone-pad"
             style={styles.input}
             editable={!loading}
+            autoComplete="tel"
           />
           <TextInput
             placeholder="Correo electrónico"
-            placeholderTextColor="#999"
+            placeholderTextColor="#6c6d6caa"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             style={styles.input}
             editable={!loading}
             autoCapitalize="none"
+            autoComplete="email"
           />
           <TextInput
             placeholder="Contraseña"
-            placeholderTextColor="#999"
+            placeholderTextColor="#6c6d6caa"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
             style={styles.input}
             editable={!loading}
+            autoComplete="password-new"
           />
           <TextInput
             placeholder="Verificar contraseña"
-            placeholderTextColor="#999"
+            placeholderTextColor="#6c6d6caa"
             secureTextEntry
             value={password2}
             onChangeText={setPassword2}
             style={styles.input}
             editable={!loading}
+            autoComplete="password-new"
           />
         </View>
 
         <TouchableOpacity
-          style={[styles.registerButton, loading && { backgroundColor: '#a5d6a7' }]}
+          style={[styles.registerButton, loading && styles.registerButtonDisabled]}
           onPress={onRegister}
           disabled={loading}
+          activeOpacity={0.8}
         >
-          <Text style={styles.registerButtonText}>{loading ? 'Registrando...' : 'Registrarse'}</Text>
+          <Text style={styles.registerButtonText}>
+            {loading ? 'Registrando...' : 'Registrarse'}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/')}>
+        <TouchableOpacity onPress={() => router.push('/')} activeOpacity={0.7}>
           <Text style={styles.loginLink}>¿Ya tienes cuenta? Inicia sesión</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -146,50 +156,72 @@ export default function Register() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e0f2f1',
+    backgroundColor: '#f1f8e9',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    paddingVertical: 40,
+    width: '90%',
     alignItems: 'center',
   },
   logo: {
     width: '100%',
     height: 180,
     marginBottom: 20,
+    borderRadius: 15,
+    overflow: 'hidden',
   },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '900',
     color: '#2e7d32',
-    marginBottom: 24,
+    marginBottom: 30,
+    letterSpacing: 1,
   },
   inputContainer: {
-    width: '90%',
-    marginBottom: 20,
+    width: '100%',
+    marginBottom: 30,
+    shadowColor: '#2e7d32',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
   },
   input: {
-    backgroundColor: '#ffffff',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 15,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: '#a5d6a7',
+    color: '#2e7d32',
   },
   registerButton: {
-    backgroundColor: '#43a047',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 10,
-    marginBottom: 12,
-    width: '90%',
+    backgroundColor: '#388e3c',
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 16,
+    width: '100%',
     alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#2e7d32',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    marginBottom: 16,
+  },
+  registerButtonDisabled: {
+    backgroundColor: '#a5d6a7',
   },
   registerButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#e8f5e9',
+    fontSize: 18,
+    fontWeight: '700',
   },
   loginLink: {
-    color: '#1b5e20',
-    fontSize: 14,
-    marginTop: 8,
+    color: '#2e7d32',
+    fontSize: 16,
+    marginTop: 10,
     textDecorationLine: 'underline',
   },
 });
