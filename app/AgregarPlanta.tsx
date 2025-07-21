@@ -1,29 +1,29 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Alert, StyleSheet, ScrollView } from 'react-native';
+import { View, TextInput, Button, Alert, StyleSheet, ScrollView, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 const AgregarPlanta = () => {
     const [nombre, setNombre] = useState('');
+    const [tipo, setTipo] = useState('');
+    const [humedad, setHumedad] = useState('');
+    const [luminosidad, setLuminosidad] = useState('');
+    const [calidadAire, setCalidadAire] = useState('');
     const [temperatura, setTemperatura] = useState('');
-    const [humedadTierra, setHumedadTierra] = useState(''); // Humedad de la tierra
-    const [aire, setAire] = useState(''); // Aire como valor numérico
-    const [luminosidad, setLuminosidad] = useState(''); // Luminosidad como valor numérico
-    const [frecuenciaRiego, setFrecuenciaRiego] = useState('');
     const navigation = useNavigation();
 
     const handleAgregarPlanta = async () => {
-        if (!nombre || !temperatura || !humedadTierra || !aire || !luminosidad || !frecuenciaRiego) {
+        if (!nombre || !tipo || !humedad || !luminosidad || !calidadAire || !temperatura) {
             Alert.alert('Error', 'Por favor completa todos los campos');
             return;
         }
 
         const plantaData = {
             nombre,
+            tipo,
+            humedad: parseFloat(humedad),
+            luminosidad: parseFloat(luminosidad),  // parseo a número
+            calidadAire,
             temperatura: parseFloat(temperatura),
-            humedadTierra: parseFloat(humedadTierra), // Humedad de la tierra
-            aire: parseFloat(aire), // Aire como valor numérico
-            luminosidad: parseFloat(luminosidad), // Luminosidad como valor numérico
-            frecuenciaRiego,
         };
 
         try {
@@ -38,6 +38,13 @@ const AgregarPlanta = () => {
             if (!response.ok) throw new Error('Error al agregar planta');
 
             Alert.alert('Éxito', 'Planta agregada correctamente');
+            // Limpiar campos
+            setNombre('');
+            setTipo('');
+            setHumedad('');
+            setLuminosidad('');
+            setCalidadAire('');
+            setTemperatura('');
             navigation.goBack();
         } catch (error) {
             if (error instanceof Error) {
@@ -50,47 +57,72 @@ const AgregarPlanta = () => {
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
-            <TextInput
-                style={styles.input}
-                placeholder="Nombre"
-                value={nombre}
-                onChangeText={setNombre}
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Temperatura (°C)"
-                value={temperatura}
-                onChangeText={setTemperatura}
-                keyboardType="numeric"
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Humedad de la Tierra (%)"
-                value={humedadTierra}
-                onChangeText={setHumedadTierra}
-                keyboardType="numeric"
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Aire (valor numérico)"
-                value={aire}
-                onChangeText={setAire}
-                keyboardType="numeric" // Campo numérico
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Luminosidad (valor numérico)"
-                value={luminosidad}
-                onChangeText={setLuminosidad}
-                keyboardType="numeric" // Campo numérico
-            />
-            <TextInput
-                style={styles.input}
-                placeholder="Frecuencia de Riego"
-                value={frecuenciaRiego}
-                onChangeText={setFrecuenciaRiego}
-            />
-            <Button title="Agregar Planta" onPress={handleAgregarPlanta} />
+            <Text style={styles.header}>Agregar Nueva Planta</Text>
+
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Nombre Común y Científico</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Ej: Lavanda (Lavandula)"
+                    value={nombre}
+                    onChangeText={setNombre}
+                />
+            </View>
+
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Tipo de Planta</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Ej: Suculenta, Hierba, Arbusto"
+                    value={tipo}
+                    onChangeText={setTipo}
+                />
+            </View>
+
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Humedad (%)</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Ej: 45"
+                    value={humedad}
+                    onChangeText={setHumedad}
+                    keyboardType="numeric"
+                />
+            </View>
+
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Luminosidad (lux)</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Ej: 500"
+                    value={luminosidad}
+                    onChangeText={setLuminosidad}
+                    keyboardType="numeric"
+                />
+            </View>
+
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Calidad del Aire (CO₂, PM2.5)</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Ej: CO₂: 400ppm, PM2.5: 35µg/m³"
+                    value={calidadAire}
+                    onChangeText={setCalidadAire}
+                />
+            </View>
+
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Temperatura (°C)</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Ej: 22.5"
+                    value={temperatura}
+                    onChangeText={setTemperatura}
+                    keyboardType="numeric"
+                />
+            </View>
+
+            <Button title="Agregar Planta" onPress={handleAgregarPlanta} color="#4CAF50" />
         </ScrollView>
     );
 };
@@ -99,15 +131,29 @@ const styles = StyleSheet.create({
     container: {
         flexGrow: 1,
         padding: 20,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#e8f5e9',
+    },
+    header: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+        color: '#2e7d32',
+    },
+    inputContainer: {
+        marginBottom: 15,
+    },
+    label: {
+        fontSize: 16,
+        marginBottom: 5,
+        color: '#2e7d32',
     },
     input: {
         height: 50,
-        borderColor: '#ccc',
+        borderColor: '#81c784',
         borderWidth: 1,
         borderRadius: 5,
         paddingHorizontal: 10,
-        marginBottom: 15,
         backgroundColor: '#fff',
     },
 });

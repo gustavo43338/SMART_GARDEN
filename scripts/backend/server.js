@@ -30,16 +30,17 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema, 'Usuarios');
 
-// Esquema de plantas
+// Esquema de plantas (modificado con los campos solicitados)
 const plantaSchema = new mongoose.Schema({
-  nombre: { type: String, required: true },
-  temperatura: { type: Number, required: true },
-  humedad: { type: Number, required: true },
-  tierra: { type: Number, required: true },
-  aire: { type: String, required: true },
-  luminocidad: { type: Number, required: true },
+  nombre: { type: String, required: true },           // Nombre común y científico
+  tipo: { type: String, required: true },             // Tipo de planta (e.g., suculenta, hierba, arbusto)
+  humedad: { type: Number, required: true },          // Humedad (%)
+  luminosidad: { type: Number, required: true },      // Nivel de luz en lux (numérico)
+  calidadAire: { type: String, required: true },      // Calidad del aire (ej. CO2: 400ppm)
+  temperatura: { type: Number, required: true },      // Temperatura en °C o °F
   timestamp: { type: Date, default: Date.now }
 });
+
 const Planta = mongoose.model('Planta', plantaSchema, 'Plantas');
 
 // Esquema de sensores
@@ -213,10 +214,23 @@ app.post('/reset-password/:token', async (req, res) => {
   res.json({ message: 'Contraseña restablecida correctamente' });
 });
 
-// POST - Agregar nueva planta
+// POST - Agregar nueva planta (con validación básica)
 app.post('/plantas', async (req, res) => {
   try {
-    const nuevaPlanta = new Planta(req.body);
+    const { nombre, tipo, humedad, luminosidad, calidadAire, temperatura } = req.body;
+
+    if (
+      !nombre ||
+      !tipo ||
+      humedad == null ||
+      luminosidad == null ||
+      !calidadAire ||
+      temperatura == null
+    ) {
+      return res.status(400).json({ error: 'Faltan campos requeridos' });
+    }
+
+    const nuevaPlanta = new Planta({ nombre, tipo, humedad, luminosidad, calidadAire, temperatura });
     await nuevaPlanta.save();
     res.status(201).json({ message: 'Planta agregada correctamente' });
   } catch (err) {
@@ -265,6 +279,17 @@ app.post('/bomba', (req, res) => {
     res.send("OK");
   } else {
     res.status(400).send("Estado inválido");
+  }
+});
+
+// NUEVA RUTA para obtener solo los nombres de las plantas
+app.get('/plantas', async (req, res) => {
+  try {
+    const plantas = await Planta.find({}, 'nombre'); // solo campo nombre
+    res.json(plantas);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las plantas' });
   }
 });
 
