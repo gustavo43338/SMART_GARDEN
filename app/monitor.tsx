@@ -14,8 +14,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from './App';
 
-const API_URL = 'http://192.168.100.10:3000/sensores/ultimo'; 
-const API_BOMBA_URL = 'http://192.168.100.10:3000/bomba';
+const API_URL = 'https://apis-smartgarden.onrender.com/sensores/ultimo';   
+const API_BOMBA_URL = 'https://apis-smartgarden.onrender.com/bomba';
 
 export default function Monitor() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -27,12 +27,14 @@ export default function Monitor() {
     agua: '--',
     tierra: '--',
     luminocidad: '--',
+    ultrasonico: '--',
+    lluvia: '--',
   });
 
   const [loading, setLoading] = useState(false);
   const [estadoBomba, setEstadoBomba] = useState<"on" | "off">("off");
 
-  // Animaciones para botones bomba
+  // Animaciones
   const scaleAnimOn = useRef(new Animated.Value(1)).current;
   const scaleAnimOff = useRef(new Animated.Value(1)).current;
 
@@ -64,6 +66,8 @@ export default function Monitor() {
         agua: data.agua ?? '--',
         tierra: data.tierra ?? '--',
         luminocidad: data.luminocidad ?? '--',
+        ultrasonico: data.ultrasonico ?? '--',
+        lluvia: data.lluvia ?? '--',
       });
     } catch (err) {
       console.error(err);
@@ -118,6 +122,8 @@ export default function Monitor() {
         <SensorCard titulo="Nivel de Agua" valor={datos.agua} />
         <SensorCard titulo="Humedad del Suelo" valor={`${datos.tierra} %`} />
         <SensorCard titulo="Luminocidad" valor={`${datos.luminocidad} lx`} />
+        <SensorCard titulo="Nivel Ultrasónico" valor={`${datos.ultrasonico} cm`} />
+        <SensorCard titulo="Sensor de Lluvia" valor={datos.lluvia} />
       </View>
 
       <View style={styles.buttonsRow}>
@@ -188,7 +194,6 @@ const styles = StyleSheet.create({
   cardsContainer: {
     marginBottom: 35,
     gap: 16,
-    // Para Android sin gap: usa margin en SensorCard componente o FlatList
   },
   buttonsRow: {
     flexDirection: 'row',

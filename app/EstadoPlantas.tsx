@@ -1,13 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TextStyle } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  FlatList,
+  Modal,
+  TextInput,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Planta = {
+  _id: string;
   nombre: string;
-  tipo: string;
-  humedad: number;      // Ideal humedad para planta (%)
-  luminosidad: number;  // Ideal lux para planta
-  calidadAire: string;  // Calidad ideal (ejemplo: "400")
-  temperatura: number;  // Ideal temperatura para planta (°C)
+  temperaturaideal: number;
+  humedadideal: number;
+  aireideal: number;
+  aguaideal: number;
+  tierraideal: number;
+  luminocidadideal: number;
 };
 
 type SensorData = {
@@ -18,191 +30,427 @@ type SensorData = {
   luminocidad: number;
 };
 
-const API_PLANTAS_URL = 'http://192.168.100.10:3000/plantas';
-const API_SENSORES_URL = 'http://192.168.100.10:3000/sensores/ultimo';
-
-// ✅ RANGOS PERSONALIZADOS POR TIPO DE PLANTA
-const rangosLuminosidad: Record<string, { min: number; max: number }> = {
-  suculenta: { min: 500, max: 1000 },
-  hierba: { min: 300, max: 700 },
-  arbusto: { min: 400, max: 900 },
-};
-
-// ✅ Evaluar luminosidad según tipo de planta
-function evaluarLuminosidadPorTipo(lux: number, tipo: string): string {
-  const rango = rangosLuminosidad[tipo] || { min: 300, max: 700 };
-  if (lux < rango.min) return 'Mala';
-  if (lux > rango.max) return 'Mala';
-  if (lux < rango.max - (rango.max - rango.min) * 0.3) return 'Buena';
-  return 'Óptima';
-}
-
-// Función para evaluar estado genérico por porcentaje de tolerancia
-function evaluarParametro(actual: number, ideal: number, toleranciaPorc = 20): string {
-  const delta = Math.abs(actual - ideal);
-  const tolerancia = (ideal * toleranciaPorc) / 100;
-
-  if (delta > tolerancia) {
-    if (actual < ideal) return 'Mala';
-    else return 'Buena';
-  }
-  return 'Óptima';
-}
-
-// Evaluar calidad de aire simplificada
-function evaluarCalidadAire(actual: string, ideal: string): string {
-  const actualNum = parseInt(actual, 10);
-  const idealNum = parseInt(ideal, 10);
-  if (isNaN(actualNum) || isNaN(idealNum)) return 'Desconocida';
-  const diff = Math.abs(actualNum - idealNum);
-
-  if (diff > 100) {
-    if (actualNum > idealNum) return 'Mala';
-    else return 'Buena';
-  }
-  return 'Óptima';
-}
+const API_BASE_URL = 'https://apis-smartgarden.onrender.com';
 
 export default function EstadoPlantas() {
-  const [plantas, setPlantas] = useState<Planta[]>([]);
+  const [plantasUsuario, setPlantasUsuario] = useState<Planta[]>([]);
+  const [plantasDisponibles, setPlantasDisponibles] = useState<Planta[]>([]);
   const [sensor, setSensor] = useState<SensorData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [plantaSeleccionada, setPlantaSeleccionada] = useState<Planta | null>(null);
+  const [error, setError] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    const obtenerDatos = async () => {
-      try {
-        const [resPlantas, resSensor] = await Promise.all([
-          fetch(API_PLANTAS_URL),
-          fetch(API_SENSORES_URL),
-        ]);
-
-        if (!resPlantas.ok) throw new Error('Error al obtener plantas');
-        if (!resSensor.ok) throw new Error('Error al obtener datos del sensor');
-
-        const plantasJson: Planta[] = await resPlantas.json();
-        const sensorJson = await resSensor.json();
-
-        const sensorData: SensorData = {
-          temperatura: Number(sensorJson.temperatura),
-          humedad: Number(sensorJson.humedad),
-          aire: sensorJson.aire,
-          tierra: Number(sensorJson.tierra),
-          luminocidad: Number(sensorJson.luminocidad),
-        };
-
-        setPlantas(plantasJson);
-        setSensor(sensorData);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    obtenerDatos();
-    const interval = setInterval(obtenerDatos, 10000);
-    return () => clearInterval(interval);
+    cargarPlantasUsuario();
   }, []);
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#2e7d32" />
-        <Text>Cargando datos...</Text>
-      </View>
-    );
-  }
+  const cargarPlantasUsuario = async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+      
+      if (!token || !userId) {
+        setError('No estás autenticado');
+        return;
+      }
 
-  if (!sensor || plantas.length === 0) {
-    return (
-      <View style={styles.container}>
-        <Text>No hay datos disponibles</Text>
-      </View>
-    );
-  }
+      const response = await fetch(`${API_BASE_URL}/usuario-plantas/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al obtener plantas del usuario');
+      }
+
+      const data = await response.json();
+      setPlantasUsuario(data);
+      
+      if (data.length > 0) {
+        setPlantaSeleccionada(data[0]);
+        cargarDatosSensor();
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Ocurrió un error desconocido al cargar plantas');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cargarPlantasDisponibles = async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      
+      if (!token) {
+        setError('No estás autenticado');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/plantas`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al obtener plantas disponibles');
+      }
+
+      const data = await response.json();
+      setPlantasDisponibles(data);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Ocurrió un error desconocido al cargar plantas disponibles');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cargarDatosSensor = async () => {
+    if (!plantaSeleccionada) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/sensores/ultimo`);
+      
+      if (!response.ok) {
+        throw new Error('Error al obtener datos del sensor');
+      }
+
+      const sensorData = await response.json();
+      setSensor({
+        temperatura: Number(sensorData.temperatura),
+        humedad: Number(sensorData.humedad),
+        aire: sensorData.aire,
+        tierra: Number(sensorData.tierra),
+        luminocidad: Number(sensorData.luminocidad),
+      });
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Ocurrió un error desconocido al cargar datos del sensor');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const agregarPlantaUsuario = async (plantaId: string) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+      
+      if (!token || !userId) {
+        setError('No estás autenticado');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/usuario-planta`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          _idUsuario: userId,
+          _idPlanta: plantaId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al agregar planta');
+      }
+
+      await cargarPlantasUsuario();
+      setModalVisible(false);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Ocurrió un error desconocido al agregar planta');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const quitarPlantaUsuario = async (plantaId: string) => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+      
+      if (!token || !userId) {
+        setError('No estás autenticado');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/usuario-planta/${userId}/${plantaId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al quitar planta');
+      }
+
+      await cargarPlantasUsuario();
+      
+      if (plantaSeleccionada?._id === plantaId) {
+        setPlantaSeleccionada(plantasUsuario.length > 1 ? 
+          plantasUsuario.find(p => p._id !== plantaId) || null : null);
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Ocurrió un error desconocido al quitar planta');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const abrirModalAgregar = async () => {
+    await cargarPlantasDisponibles();
+    setModalVisible(true);
+  };
+
+  const plantasParaAgregar = plantasDisponibles.filter(
+    planta => !plantasUsuario.some(p => p._id === planta._id)
+  ).filter(
+    planta => planta.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Estado de Plantas y Sensores</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Mis Plantas</Text>
 
-      {plantas.map((planta, i) => (
-        <View key={i} style={styles.plantaCard}>
-          <Text style={styles.plantaNombre}>{planta.nombre}</Text>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Text style={styles.parametro}>
-            Temperatura: {sensor.temperatura} °C -{' '}
-            <Text style={estiloEvaluacion(evaluarParametro(sensor.temperatura, planta.temperatura))}>
-              {evaluarParametro(sensor.temperatura, planta.temperatura)}
-            </Text>
-          </Text>
+      <TouchableOpacity 
+        style={styles.botonAgregar} 
+        onPress={abrirModalAgregar}
+        disabled={loading}
+      >
+        <Text style={styles.textoBoton}>+ Agregar Planta</Text>
+      </TouchableOpacity>
 
-          <Text style={styles.parametro}>
-            Calidad del Aire: {sensor.aire} ppm -{' '}
-            <Text style={estiloEvaluacion(evaluarCalidadAire(sensor.aire, planta.calidadAire))}>
-              {evaluarCalidadAire(sensor.aire, planta.calidadAire)}
-            </Text>
-          </Text>
+      {loading && !modalVisible ? (
+        <ActivityIndicator size="large" color="#2e7d32" />
+      ) : plantasUsuario.length === 0 ? (
+        <Text style={styles.sinPlantas}>No tienes plantas registradas</Text>
+      ) : (
+        <FlatList
+          data={plantasUsuario}
+          keyExtractor={item => item._id}
+          renderItem={({ item }) => (
+            <View style={[
+              styles.tarjetaPlanta,
+              plantaSeleccionada?._id === item._id && styles.tarjetaSeleccionada
+            ]}>
+              <TouchableOpacity 
+                style={styles.contenidoTarjeta}
+                onPress={() => setPlantaSeleccionada(item)}
+              >
+                <Text style={styles.nombrePlanta}>{item.nombre}</Text>
+                <TouchableOpacity onPress={() => quitarPlantaUsuario(item._id)}>
+                  <Text style={styles.iconoEliminar}>🗑️</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
 
-          <Text style={styles.parametro}>
-            Humedad del Suelo: {sensor.tierra} % -{' '}
-            <Text style={estiloEvaluacion(evaluarParametro(sensor.tierra, planta.humedad))}>
-              {evaluarParametro(sensor.tierra, planta.humedad)}
-            </Text>
-          </Text>
+              {plantaSeleccionada?._id === item._id && (
+                <View style={styles.datosSensor}>
+                  {sensor ? (
+                    <>
+                      <Text>Temperatura: {sensor.temperatura}°C (Ideal: {item.temperaturaideal}°C)</Text>
+                      <Text>Humedad: {sensor.humedad}% (Ideal: {item.humedadideal}%)</Text>
+                      <Text>Calidad Aire: {sensor.aire} (Ideal: {item.aireideal})</Text>
+                      <Text>Humedad Tierra: {sensor.tierra} (Ideal: {item.tierraideal})</Text>
+                      <Text>Luminosidad: {sensor.luminocidad} (Ideal: {item.luminocidadideal})</Text>
+                    </>
+                  ) : (
+                    <Text>No hay datos del sensor</Text>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+        />
+      )}
 
-          <Text style={styles.parametro}>
-            Luminocidad: {sensor.luminocidad} lx -{' '}
-            <Text style={estiloEvaluacion(evaluarLuminosidadPorTipo(sensor.luminocidad, planta.tipo))}>
-              {evaluarLuminosidadPorTipo(sensor.luminocidad, planta.tipo)}
-            </Text>
-          </Text>
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalFondo}>
+          <View style={styles.modalContenido}>
+            <Text style={styles.tituloModal}>Agregar Planta</Text>
+            
+            <TextInput
+              placeholder="Buscar plantas..."
+              style={styles.buscador}
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+            />
+
+            {loading ? (
+              <ActivityIndicator size="large" color="#2e7d32" />
+            ) : plantasParaAgregar.length === 0 ? (
+              <Text style={styles.sinResultados}>No hay plantas disponibles</Text>
+            ) : (
+              <FlatList
+                data={plantasParaAgregar}
+                keyExtractor={item => item._id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.itemPlanta}
+                    onPress={() => agregarPlantaUsuario(item._id)}
+                  >
+                    <Text style={styles.nombrePlantaModal}>{item.nombre}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+
+            <TouchableOpacity
+              style={styles.botonCerrarModal}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.textoBoton}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      ))}
-    </ScrollView>
+      </Modal>
+    </View>
   );
 }
 
-const estiloEvaluacion = (evalStr: string): TextStyle => {
-  switch (evalStr) {
-    case 'Óptima':
-      return { color: '#2e7d32', fontWeight: '700' };
-    case 'Buena':
-      return { color: '#fbc02d', fontWeight: '700' };
-    case 'Mala':
-      return { color: '#c62828', fontWeight: '700' };
-    default:
-      return { color: '#555' };
-  }
-};
-
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     padding: 20,
-    backgroundColor: '#e6f4ea',
-    flexGrow: 1,
+    backgroundColor: '#f5f5f5',
   },
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#2e7d32',
     marginBottom: 20,
+    color: '#2e7d32',
     textAlign: 'center',
   },
-  plantaCard: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 15,
+  error: {
+    color: 'red',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  botonAgregar: {
+    backgroundColor: '#2e7d32',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  textoBoton: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  sinPlantas: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#666',
+  },
+  tarjetaPlanta: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
     elevation: 2,
   },
-  plantaNombre: {
+  tarjetaSeleccionada: {
+    borderColor: '#2e7d32',
+    borderWidth: 2,
+  },
+  contenidoTarjeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nombrePlanta: {
+    fontSize: 18,
+    fontWeight: '500',
+  },
+  iconoEliminar: {
+    fontSize: 20,
+  },
+  datosSensor: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  modalFondo: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContenido: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  tituloModal: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1b5e20',
-    marginBottom: 8,
+    marginBottom: 15,
+    color: '#2e7d32',
   },
-  parametro: {
+  buscador: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 15,
+  },
+  itemPlanta: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  nombrePlantaModal: {
     fontSize: 16,
-    marginBottom: 4,
+  },
+  sinResultados: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#666',
+  },
+  botonCerrarModal: {
+    backgroundColor: '#757575',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 15,
   },
 });

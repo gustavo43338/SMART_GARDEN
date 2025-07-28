@@ -21,7 +21,7 @@ const AgregarPlanta = () => {
             nombre,
             tipo,
             humedad: parseFloat(humedad),
-            luminosidad: parseFloat(luminosidad),  // parseo a número
+            luminosidad: parseFloat(luminosidad),  
             calidadAire,
             temperatura: parseFloat(temperatura),
         };

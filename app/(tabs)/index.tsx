@@ -56,7 +56,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const response = await fetch('http://192.168.100.10:3000/login', {
+      const response = await fetch('https://apis-smartgarden.onrender.com/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo, contraseña }),
@@ -65,6 +65,12 @@ export default function Login() {
       const data = await response.json();
       if (response.ok) {
         await AsyncStorage.setItem('token', data.token);
+        // Guardar también el id del usuario para filtrar plantas después
+        // Para esto, primero debes modificar tu backend para que el login regrese también el id del usuario
+        // Suponiendo que ya lo haces, por ejemplo data.id
+        if (data.id) {
+          await AsyncStorage.setItem('userId', data.id);
+        }
         router.replace('/home');
       } else {
         setError(data.error || 'Credenciales incorrectas.');
@@ -178,11 +184,9 @@ export default function Login() {
           )}
         </TouchableOpacity>
 
-       
         <TouchableOpacity onPress={() => router.push('/Recuperar')}>
-  <Text style={styles.forgotLink}>¿Olvidaste tu contraseña?</Text>
-</TouchableOpacity>
-
+          <Text style={styles.forgotLink}>¿Olvidaste tu contraseña?</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push('/register')}>
           <Text style={styles.registerLink}>¿No tienes cuenta? Regístrate</Text>
